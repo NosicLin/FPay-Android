@@ -11,6 +11,8 @@
 # generated files
 bin/
 gen/
+assets/
+obj/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -27,3 +29,7 @@ proguard/
 *.ipr
 *.iws
 .idea/
+
+*.o 
+*.o.d
+

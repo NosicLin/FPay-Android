@@ -1,7 +1,11 @@
 package com.faeris.libpaymm;
+import java.util.HashMap;
+
 import mm.purchasesdk.OnPurchaseListener;
 import mm.purchasesdk.Purchase;
 import android.content.Context;
+import android.util.Log;
+
 import com.faeris.lib.Fs_Application;
 
 public class Fs_Purchase {
@@ -9,6 +13,25 @@ public class Fs_Purchase {
 	private static Fs_onPurchaseListener m_listener;
 	private static Purchase m_purchase;
 	private static Context m_context;
+	private static int m_orderId=0;
+	
+	private static HashMap<String,Integer> m_olderSet=new HashMap<String,Integer>();
+	
+	
+	public static void MapID(String key,Integer value)
+	{
+		m_olderSet.put(key,value);
+	}
+	public static Integer GetID(String key)
+	{
+		return m_olderSet.get(key);
+	}
+	public static void unMapID(String key)
+	{
+
+		m_olderSet.remove(key);
+	}
+	
 	
 	public static void init(final String appid,final String appkey)	{
 		
@@ -45,19 +68,26 @@ public class Fs_Purchase {
 	
 	public static String order(final String paycode)
 	{
+		m_orderId=m_orderId+1;
+		final int older_id=m_orderId;
+		
 		Fs_Application.runUiThread(new Runnable(){
 			public void run(){
-				String order_id="";
+				String trace_id="";
 				
 				try{
-					order_id=m_purchase.order(m_context, paycode, 1, m_listener);
-				}catch (Exception e) {
+					
+					trace_id=m_purchase.order(m_context, paycode, 1, m_listener);
+					Fs_Purchase.MapID(trace_id,older_id);
+					
+				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				//return order_id;
 			}
 		
 		});
-		return "";
+		
+		Integer ret=older_id;
+		return ret.toString();
 	}
 }

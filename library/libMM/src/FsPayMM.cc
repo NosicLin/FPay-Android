@@ -82,19 +82,21 @@ std::string PayMM::order(const char* paycode)
 	env->DeleteLocalRef(jpaycode);
 
 	return s_str;
-
 }
 
 void PayMM::billingFinish(int status,const std::string& id)
 {
 
+	LuaEngine* se=(LuaEngine*) Global::scriptEngine();
+	se->callFunctionInTable(m_scriptData,"onBillingFinish",3,0,"fis",this,status,id.c_str());
 }
-
 
 void PayMM::initFinish(int status)
 {
-
+	LuaEngine* se=(LuaEngine*) Global::scriptEngine();
+	se->callFunctionInTable(m_scriptData,"onInitFinish",2,0,"fn",this,status);
 }
+
 
 PayMM::PayMM()
 {

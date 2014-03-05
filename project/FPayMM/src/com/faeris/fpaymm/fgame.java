@@ -16,7 +16,6 @@ public class fgame  extends Fs_Activity
 	static {
         System.loadLibrary("faeris"); 
         System.loadLibrary("paymm");
-
     }
 
 }

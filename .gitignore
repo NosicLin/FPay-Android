@@ -13,6 +13,9 @@ bin/
 gen/
 assets/
 obj/
+paoku/
+ihuizhi/
+dianxing/
 
 # Local configuration file (sdk path, etc)
 local.properties

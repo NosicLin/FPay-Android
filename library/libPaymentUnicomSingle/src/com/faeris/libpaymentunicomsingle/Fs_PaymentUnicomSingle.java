@@ -3,6 +3,8 @@ package com.faeris.libpaymentunicomsingle;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,62 +23,140 @@ import com.unicom.dcLoader.Utils.UnipayPayResultListener;
 
 public class Fs_PaymentUnicomSingle implements Fs_PaymentImp{
 
+	private class PaycodeInfo{
+		/* attribute */
+		public boolean isOtherpay;
+		public boolean isSms;
+		public String callBackUrl;
+		public String vacCode;
+		public String curstomCode;
+		public String props;
+		public String money;
+		
+		/* method */
+		public PaycodeInfo(JSONObject json) throws JSONException
+		{
+			isOtherpay=json.getBoolean("isOtherpay");
+			isSms=json.getBoolean("isSms");
+			callBackUrl=json.getString("callBackUrl");
+			vacCode=json.getString("vacCode");
+			curstomCode=json.getString("curstomCode");
+			props=json.getString("props");
+			money=json.getString("money");
+		}
+	};
+	
+	
+	/* attribute */
 	private int m_billingCount=0;
-	public Fs_PaymentUnicomSingle(
-			Context context,
-			String app_id,
-			String cp_code,
-			String cp_id,
-			String company,
-			String phone,
-			String game,
-			String uid)
+	private HashMap<String,PaycodeInfo> m_paycodes=null;
+	
+	
+	/* method */
+	public Fs_PaymentUnicomSingle()
 	{
-		Utils.getInstances().init(context,app_id,cp_code,cp_id,company,phone,game,uid, new UnipayPayResultListener(){
-			@Override
-			public void PayResult(String arg0, int arg1, String arg2) {
-				// TODO Auto-generated method stub
-				
-			}
-
-		});
+		m_paycodes=new HashMap<String,PaycodeInfo>();
 	}
 	
 	
 	@Override
-	public void setConfig(Context context, String value) {
-		// TODO Auto-generated method stub
-		
+	public void setConfig(Context context, String config) {
+		try {
+			JSONObject json = new JSONObject(config);
+			String app_id=json.getString("appId");
+			String cp_code=json.getString("cpCode");
+			String cp_id=json.getString("cpId");
+			String company=json.getString("company");
+			String phone=json.getString("phone");
+			String game=json.getString("game");
+			String uid=json.getString("uid");
+			
+			HashMap<String,PaycodeInfo> paycodes=new HashMap<String,PaycodeInfo>();
+			
+			JSONObject json_paycodes=json.getJSONObject("paycodes");
+			Iterator iter=json_paycodes.keys();
+			while(iter.hasNext())
+			{
+				String key=(String)iter.next();
+				JSONObject value=json_paycodes.getJSONObject(key);
+				PaycodeInfo paycode_info=new PaycodeInfo(value);
+				paycodes.put(key, paycode_info);
+			}
+			
+			Utils.getInstances().init(context,app_id,cp_code,cp_id,company,phone,game,uid, new UnipayPayResultListener(){
+				@Override
+				public void PayResult(String arg0, int arg1, String arg2) {
+					// TODO Auto-generated method stub
+					
+				}
+
+			});
+			
+			this.m_paycodes=paycodes;
+			
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	@Override 
+	public boolean hasPaycode(String name)
+	{
+		PaycodeInfo paycode=this.m_paycodes.get(name);
+		if(paycode!=null)
+		{
+			return true;
+		}
+		else 
+		{
+			return false;
+		}
 	}
 
 	@Override
 	public void billing(Context context, String name, String msg,final Fs_PaymentListener listener) {
 		
 		try {
+			
 			JSONObject json = new JSONObject(msg);
-		
-			boolean is_otherpay=json.getBoolean("isOtherpay");
-			boolean is_sms=json.getBoolean("isSms");
-			String url=json.getString("url");
-			String vac_code=json.getString("vacCode");
-			String custom_code=json.getString("customCode");
-			String props=json.getString("props");
-			String money=json.getString("money");
-	
-			Format f = new SimpleDateFormat("yyyyMMddHHmmss");
-			m_billingCount++;
-			String count=""+m_billingCount+"0000000000";
+			String older_id=null;
 			
-			String order_id=f.format(new Date())+count.substring(0,10);
+			try{
+				older_id=json.getString("orderId");
+			}
 			
-			Utils.getInstances().setBaseInfo(Fs_Application.getContext(),is_otherpay,is_sms,url);
+			catch (JSONException e)
+			{
+				Format f = new SimpleDateFormat("yyyyMMddHHmmss");
+				m_billingCount++;
+				String count=""+m_billingCount+"0000000000";
+				older_id=f.format(new Date())+count.substring(0,10);
+			}
 			
-			Utils.getInstances().pay(Fs_Application.getContext(),vac_code,custom_code,props,money,order_id,
+			PaycodeInfo paycode=this.m_paycodes.get(name);
+			/* paycode not find */
+			if(paycode == null)
+			{
+				Fs_Application.runUiThread(new Runnable(){
+
+					@Override
+					public void run() {
+						String msg="{\"msg\":\"计费点未找到\"}";
+						listener.payResult(Fs_Payment.ERROR, msg);
+						// TODO Auto-generated method stub
+					}
+				});
+				return ;
+			}
+			
+			
+			Utils.getInstances().setBaseInfo(context,paycode.isOtherpay,paycode.isSms,paycode.callBackUrl);
+			
+			Utils.getInstances().pay(context,paycode.vacCode,paycode.curstomCode,paycode.props,paycode.money,older_id,
 					new UnipayPayResultListener(){
 								@Override
-								public void PayResult(String pay_code,
-										int flag1, String error) {
-									Log.v("Fs_UniPurchase:bill","paycode="+pay_code+" flags1="+flag1+  " error="+error);
+								public void PayResult(String pay_code,int flag1, String error) {
 									switch(flag1)
 									{
 										case Utils.SUCCESS_SMS:
@@ -99,17 +179,19 @@ public class Fs_PaymentUnicomSingle implements Fs_PaymentImp{
 			} catch (JSONException e) {
 				
 				Fs_Application.runUiThread(new Runnable(){
-
 					@Override
 					public void run() {
 						String msg="{\"msg\":\"参数解析错误\"}";
 						listener.payResult(Fs_Payment.ERROR, msg);
 						// TODO Auto-generated method stub
 					}
-				});
-			}
+			});
 		}
-	
 	}
+	
+}
+
+
+
 	
 
